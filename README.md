@@ -325,10 +325,12 @@ Distributed under the Protify License. See `LICENSE.md` for more information.
 
 ### Collaborations
 lhallee@udel.edu
+
 [Gleghorn Lab](https://www.gleghornlab.com/)
 
 ### Business / Licensing 
 info@synthyra.com
+
 [Synthyra](https://synthyra.com)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
