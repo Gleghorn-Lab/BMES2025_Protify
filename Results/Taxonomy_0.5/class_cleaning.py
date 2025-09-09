@@ -4,21 +4,25 @@ import subprocess
 import os
 import csv
 import psutil
-from datasets import Dataset, DatasetDict
 import sklearn.model_selection
+from datasets import Dataset, DatasetDict
 from sklearn.model_selection import train_test_split
+
+from docker_cdhit import cd_hit
+
+
 
 # Load the raw data
 df = pd.read_csv('raw.tsv', sep='\t')
-
 # Strip any extra spaces from column names
 df.columns = df.columns.str.strip()
 print("Columns found:", df.columns.tolist()) 
 
+
 # Filter by sequence length
 filtered = df[(df['Length'] >= 20) & (df['Length'] <= 2048)]
-
 ranks = ["domain", "kingdom", "phylum", "class", "order", "family", "genus", "species"]
+
 
 def extract_taxonomic_ids(lineage_str):
     rank_id_map = {}
@@ -33,6 +37,7 @@ def extract_taxonomic_ids(lineage_str):
                 rank_id_map[rank] = tax_id
     return [rank_id_map.get(rank) for rank in ranks]
 
+
 # Apply to the filtered DataFrame
 filtered = filtered.reset_index(drop=True)
 tax_ids = filtered["Taxonomic lineage (Ids)"].apply(extract_taxonomic_ids)
@@ -40,7 +45,7 @@ tax_id_df = pd.DataFrame(tax_ids.tolist(), columns=ranks)
 class_df = pd.concat([filtered, tax_id_df], axis=1)
 
 # Create class dataset (class name and sequence)
-class_df = class_df[['Entry','class', 'Sequence']].copy()
+class_df = class_df[['Entry', 'class', 'Sequence']].copy()
 class_df = class_df.dropna()
 print(f"Number of unique class: {class_df['class'].nunique()}") #prints 263
 print(f"Total number of rows: {len(class_df)}") #prints 561,083
@@ -57,64 +62,6 @@ with open("class.tsv", newline='') as tsv, open("class.fasta", 'w') as fasta:
         seq    = row['Sequence']
         fasta.write(f"{header}\n{seq}\n")
 
-
-#CD-HIT using Docker
-def cd_hit(
-        fasta_file: str,
-        similarity_threshold: float = 0.5,
-        n: int = 2, # word size, 5 is faster but 3 is more sensitive
-        memory_percentage: float = 0.5,
-    ):
-    output_path = f"output_{fasta_file.split('.')[0]}_{similarity_threshold}"
-
-    # Run cd-hit in Docker
-    # Build the cd-hit Docker image if not already built
-    num_cpu = os.cpu_count() - 4 if os.cpu_count() > 4 else 1
-    memory_max = int(memory_percentage * psutil.virtual_memory().total / 1024 / 1024)  # in MB
-    print(f'Using {num_cpu} CPUs and {memory_max} MB memory')
-
-    print("Building cd-hit Docker image...")
-    docker_image = "cd-hit"
-    dockerfile_url = "https://raw.githubusercontent.com/weizhongli/cdhit/master/Docker/Dockerfile"
-    # Build the Docker image
-    try:
-        subprocess.run([
-            "docker", "build", "--tag", docker_image, dockerfile_url
-        ], check=True)
-
-        subprocess.run([
-            "docker", "run",
-            "-v", f"{os.getcwd()}:/data",
-            "-w", "/data",
-            docker_image,
-            "cd-hit",
-            "-i", fasta_file,
-            "-o", output_path,
-            "-d", "0",
-            "-c", str(similarity_threshold),
-            "-n", str(n),
-            "-T", str(num_cpu),
-            "-M", str(memory_max)
-        ], check=True)
-    except:
-        subprocess.run([
-            "sudo", "docker", "build", "--tag", docker_image, dockerfile_url
-        ], check=True)
-
-        subprocess.run([
-            "sudo", "docker", "run",
-            "-v", f"{os.getcwd()}:/data",
-            "-w", "/data",
-            docker_image,
-            "cd-hit",
-            "-i", fasta_file,
-            "-o", output_path,
-            "-d", "0",
-            "-c", str(similarity_threshold),
-            "-n", str(n),
-            "-T", str(num_cpu),
-            "-M", str(memory_max)
-        ], check=True)
 
 ### make sure docker desktop is running
 fasta_file = 'class.fasta'
