@@ -7,7 +7,7 @@ import psutil
 from datasets import Dataset, DatasetDict
 import sklearn.model_selection
 from sklearn.model_selection import train_test_split
-"""
+
 # Load the raw data
 df = pd.read_csv('raw.tsv', sep='\t')
 
@@ -62,7 +62,7 @@ with open("genus.tsv", newline='') as tsv, open("genus.fasta", 'w') as fasta:
 def cd_hit(
         fasta_file: str,
         similarity_threshold: float = 0.5,
-        n: int = 5, # word size, 5 is faster but 3 is more sensitive
+        n: int = 2, # word size, 5 is faster but 3 is more sensitive
         memory_percentage: float = 0.5,
     ):
     output_path = f"output_{fasta_file.split('.')[0]}_{similarity_threshold}"
@@ -118,12 +118,12 @@ def cd_hit(
 
 ### make sure docker desktop is running
 fasta_file = 'genus.fasta'
-cd_hit(fasta_file, similarity_threshold=0.8, n=5, memory_percentage=0.5)
+cd_hit(fasta_file, similarity_threshold=0.5, n=2, memory_percentage=0.5)
 
-"""
+
 #RESULT - output_genus_0.8.fasta file showing the representative seqeunces and output_genus_0.8.clstr showing the cluster results from CD-HIT
 #Read the FASTA into a list of dicts
-with open("output_genus_0.8", "r") as f:
+with open("output_genus_0.5", "r") as f:
     lines = f.read().splitlines()
 
 records = []
@@ -158,26 +158,27 @@ if entry:
 df = pd.DataFrame(records)
 print(df.head())
 
-# Create a new 'label' column based on genus
-df["labels"] = pd.factorize(df["genus"])[0]
-print(df.head())
 
 print(f"Before dropping duplicates: {len(df)}")
 df = df.drop_duplicates(subset=['genus','Sequence'], keep='first') #no duplicates found
 print(f"After dropping duplicates: {len(df)}")
-##RESULT - no duplicated found or removed
-output_filename = 'genus_labeled.csv'
-df.to_csv(output_filename, index=False)
-print(df.head())
 
 print(f"Number of unique genuses: {df['genus'].nunique()}") #prints 3,634
 print(f"Total number of rows: {len(df)}") #prints 270,747
 
-# Remove genuses with fewer than 2 samples
+# Remove genuses with fewer than 100 samples
 genus_counts = df['genus'].value_counts()
 df = df[df['genus'].isin(genus_counts[genus_counts >= 100].index)]
 print(f"Number of unique genuses after removing rare classes: {df['genus'].nunique()}") #prints 461
 print(f"Total number of rows after removing rare classes: {len(df)}") #prints 243,204
+
+# Create a new 'label' column based on genus
+df["labels"] = pd.factorize(df["genus"])[0]
+print(df.head())
+
+output_filename = 'genus_labeled.csv'
+df.to_csv(output_filename, index=False)
+print(df.head())
 
 # Stratified split: first get test set (5,000), then eval (5,000), rest is train
 train_valid, test = train_test_split(df, test_size=5000, stratify=df['labels'], random_state=42)

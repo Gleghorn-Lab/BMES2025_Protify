@@ -16,13 +16,14 @@ from docker_cdhit import cd_hit
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Script with arguments mirroring the provided YAML settings.")
-    parser.add_argument("--hf_username", default="GleghornLab", help="Hugging Face username.")
-    parser.add_argument("--hf_token", default=None, help="Hugging Face token.")
-    parser.add_argument("--similarity_threshold", default=0.4, help="Similarity threshold for CD-HIT.")
-    parser.add_argument("--raw_data_file", default="raw.tsv", help="Raw data file.")
-    parser.add_argument("--eval_size", default=5000, help="Evaluation size.")
+    parser.add_argument("--hf_username", type=str, default="GleghornLab", help="Hugging Face username.")
+    parser.add_argument("--hf_token", type=str, default=None, help="Hugging Face token.")
+    parser.add_argument("--similarity_threshold", type=float, default=0.4, help="Similarity threshold for CD-HIT.")
+    parser.add_argument("--n", type=int, default=2, help="Number of threads for CD-HIT.")
+    parser.add_argument("--memory_percentage", type=float, default=0.5, help="Memory percentage for CD-HIT.")
+    parser.add_argument("--raw_data_file", type=str, default="raw.tsv", help="Raw data file.")
+    parser.add_argument("--eval_size", type=int, default=5000, help="Evaluation size.")
     return parser.parse_args()
-
 
 
 def main(args):
@@ -32,7 +33,7 @@ def main(args):
         print("No Hugging Face token provided, skipping login.")
 
     # Load the raw data
-    df = pd.read_csv(args.raw_data_file, sep='\t')
+    df = pd.read_csv(args.raw_data_file, sep='\t', encoding='utf-8')
     df.columns = df.columns.str.strip()
     print("Columns found:", df.columns.tolist())
 
@@ -73,13 +74,21 @@ def main(args):
             seq = row['Sequence']
             fasta.write(f"{header}\n{seq}\n")
 
-    # Run CD-HIT once on the combined FASTA
-    cd_hit(all_fasta_path, similarity_threshold=args.similarity_threshold, n=2, memory_percentage=0.5)
-    print("CD-HIT completed for combined dataset")
-
     # Read the representative sequences from CD-HIT output
     output_base = os.path.splitext(os.path.basename(all_fasta_path))[0]  # "all"
     output_fasta_path = f"output_{output_base}_{args.similarity_threshold}"
+
+    # Run CD-HIT once on the combined FASTA
+    cd_hit(
+        all_fasta_path,
+        similarity_threshold=args.similarity_threshold,
+        n=args.n,
+        memory_percentage=args.memory_percentage,
+        output_path=output_fasta_path
+    )
+    print("CD-HIT completed for combined dataset")
+
+
     with open(output_fasta_path, "r") as f:
         lines = f.read().splitlines()
 

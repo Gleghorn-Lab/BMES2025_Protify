@@ -8,7 +8,6 @@ from datasets import Dataset, DatasetDict
 import sklearn.model_selection
 from sklearn.model_selection import train_test_split
 
-"""
 # Load the raw data
 df = pd.read_csv('raw.tsv', sep='\t')
 
@@ -62,7 +61,7 @@ with open("family.tsv", newline='') as tsv, open("family.fasta", 'w') as fasta:
 def cd_hit(
         fasta_file: str,
         similarity_threshold: float = 0.5,
-        n: int = 5, # word size, 5 is faster but 3 is more sensitive
+        n: int = 2, # word size, 5 is faster but 3 is more sensitive
         memory_percentage: float = 0.5,
     ):
     output_path = f"output_{fasta_file.split('.')[0]}_{similarity_threshold}"
@@ -118,11 +117,11 @@ def cd_hit(
 
 ### make sure docker desktop is running
 fasta_file = 'family.fasta'
-cd_hit(fasta_file, similarity_threshold=0.8, n=5, memory_percentage=0.5)
-"""
-#RESULT - output_family_0.8.fasta file showing the representative seqeunces and output_family_0.8.clstr showing the cluster results from CD-HIT
+cd_hit(fasta_file, similarity_threshold=0.5, n=2, memory_percentage=0.5)
+
+#RESULT - output_family_0.5.fasta file showing the representative seqeunces and output_family_0.5.clstr showing the cluster results from CD-HIT
 #Read the FASTA into a list of dicts
-with open("output_family_0.8", "r") as f:
+with open("output_family_0.5", "r") as f:
     lines = f.read().splitlines()
 
 records = []
@@ -157,17 +156,9 @@ if entry:
 df = pd.DataFrame(records)
 print(df.head())
 
-# Create a new 'label' column based on species
-df["labels"] = pd.factorize(df["family"])[0]
-print(df.head())
-
 print(f"Before dropping duplicates: {len(df)}")
 df = df.drop_duplicates(subset=['family','Sequence'], keep='first') #no duplicates found
 print(f"After dropping duplicates: {len(df)}")
-##RESULT - no duplicated found or removed
-output_filename = 'family_labeled.csv'
-df.to_csv(output_filename, index=False)
-print(df.head())
 
 print(f"Number of unique family: {df['family'].nunique()}") #prints 1,641
 print(f"Total number of rows: {len(df)}") #prints 268,357
@@ -177,6 +168,14 @@ family_counts = df['family'].value_counts()
 df = df[df['family'].isin(family_counts[family_counts >= 100].index)]
 print(f"Number of unique family after removing rare classes: {df['family'].nunique()}") #prints 318
 print(f"Total number of rows after removing rare classes: {len(df)}") #prints 252,331
+
+# Create a new 'label' column based on species
+df["labels"] = pd.factorize(df["family"])[0]
+print(df.head())
+
+output_filename = 'family_labeled.csv'
+df.to_csv(output_filename, index=False)
+print(df.head())
 
 # Stratified split: first get test set (5,000), then eval (5,000), rest is train
 train_valid, test = train_test_split(df, test_size=5000, stratify=df['labels'], random_state=42)

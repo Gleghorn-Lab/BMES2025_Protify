@@ -7,7 +7,7 @@ import psutil
 from datasets import Dataset, DatasetDict
 import sklearn.model_selection
 from sklearn.model_selection import train_test_split
-"""
+
 # Load the raw data
 df = pd.read_csv('raw.tsv', sep='\t')
 
@@ -62,7 +62,7 @@ with open("phylum.tsv", newline='') as tsv, open("phylum.fasta", 'w') as fasta:
 def cd_hit(
         fasta_file: str,
         similarity_threshold: float = 0.5,
-        n: int = 5, # word size, 5 is faster but 3 is more sensitive
+        n: int = 2, # word size, 5 is faster but 3 is more sensitive
         memory_percentage: float = 0.5,
     ):
     output_path = f"output_{fasta_file.split('.')[0]}_{similarity_threshold}"
@@ -118,11 +118,11 @@ def cd_hit(
 
 ### make sure docker desktop is running
 fasta_file = 'phylum.fasta'
-cd_hit(fasta_file, similarity_threshold=0.8, n=5, memory_percentage=0.5)
-"""
-#RESULT - output_phylum_0.8.fasta file showing the representative seqeunces and output_phylum_0.8.clstr showing the cluster results from CD-HIT
+cd_hit(fasta_file, similarity_threshold=0.5, n=2, memory_percentage=0.5)
+
+#RESULT - output_phylum_0.5.fasta file showing the representative seqeunces and output_phylum_0.5.clstr showing the cluster results from CD-HIT
 #Read the FASTA into a list of dicts
-with open("output_phylum_0.8", "r") as f:
+with open("output_phylum_0.5", "r") as f:
     lines = f.read().splitlines()
 
 records = []
@@ -157,17 +157,10 @@ if entry:
 df = pd.DataFrame(records)
 print(df.head())
 
-# Create a new 'label' column based on species
-df["labels"] = pd.factorize(df["phylum"])[0]
-print(df.head())
-
 print(f"Before dropping duplicates: {len(df)}")
 df = df.drop_duplicates(subset=['phylum','Sequence'], keep='first') #no duplicates found
 print(f"After dropping duplicates: {len(df)}")
 ##RESULT - no duplicated found or removed
-output_filename = 'phylum_labeled.csv'
-df.to_csv(output_filename, index=False)
-print(df.head())
 
 print(f"Number of unique phylum: {df['phylum'].nunique()}") #prints 116
 print(f"Total number of rows: {len(df)}") #prints 269,838
@@ -177,6 +170,14 @@ phylum_counts = df['phylum'].value_counts()
 df = df[df['phylum'].isin(phylum_counts[phylum_counts >= 100].index)]
 print(f"Number of unique phylum after removing rare phylum: {df['phylum'].nunique()}") #prints 65
 print(f"Total number of rows after removing rare phylum: {len(df)}") #prints 268,989
+
+# Create a new 'label' column based on species
+df["labels"] = pd.factorize(df["phylum"])[0]
+print(df.head())
+
+output_filename = 'phylum_labeled.csv'
+df.to_csv(output_filename, index=False)
+print(df.head())
 
 # Stratified split: first get test set (5,000), then eval (5,000), rest is train
 train_valid, test = train_test_split(df, test_size=5000, stratify=df['labels'], random_state=42)

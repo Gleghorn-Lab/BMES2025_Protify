@@ -8,8 +8,10 @@ def cd_hit(
         similarity_threshold: float = 0.5,
         n: int = 2, # word size, 5 is faster but 3 is more sensitive
         memory_percentage: float = 0.5,
+        output_path: str = None,
     ):
-    output_path = f"output_{fasta_file.split('.')[0]}_{similarity_threshold}"
+    if output_path is None:
+        output_path = f"output_{fasta_file.split('.')[0]}_{similarity_threshold}"
 
     # Run cd-hit in Docker
     # Build the cd-hit Docker image if not already built
