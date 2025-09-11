@@ -67,26 +67,32 @@ def main(args):
 
     # Build a single FASTA for the entire dataset (one header per Entry)
     all_fasta_path = "all.fasta"
-    unique_entries = rank_df[["Entry", "Sequence"]].drop_duplicates(subset=["Entry"]).reset_index(drop=True)
-    with open(all_fasta_path, 'w') as fasta:
-        for _, row in tqdm(unique_entries.iterrows(), total=len(unique_entries), desc="Writing combined FASTA"):
-            header = f">{row['Entry']}"
-            seq = row['Sequence']
-            fasta.write(f"{header}\n{seq}\n")
+    if not os.path.exists(all_fasta_path):
+        unique_entries = rank_df[["Entry", "Sequence"]].drop_duplicates(subset=["Entry"]).reset_index(drop=True)
+        with open(all_fasta_path, 'w') as fasta:
+            for _, row in tqdm(unique_entries.iterrows(), total=len(unique_entries), desc="Writing combined FASTA"):
+                header = f">{row['Entry']}"
+                seq = row['Sequence']
+                fasta.write(f"{header}\n{seq}\n")
+    else:
+        print(f"Found existing FASTA at {all_fasta_path}; skipping write.")
 
     # Read the representative sequences from CD-HIT output
     output_base = os.path.splitext(os.path.basename(all_fasta_path))[0]  # "all"
     output_fasta_path = f"output_{output_base}_{args.similarity_threshold}"
 
     # Run CD-HIT once on the combined FASTA
-    cd_hit(
-        all_fasta_path,
-        similarity_threshold=args.similarity_threshold,
-        n=args.n,
-        memory_percentage=args.memory_percentage,
-        output_path=output_fasta_path
-    )
-    print("CD-HIT completed for combined dataset")
+    if os.path.exists(output_fasta_path):
+        print(f"Found existing CD-HIT output at {output_fasta_path}; skipping clustering.")
+    else:
+        cd_hit(
+            all_fasta_path,
+            similarity_threshold=args.similarity_threshold,
+            n=args.n,
+            memory_percentage=args.memory_percentage,
+            output_path=output_fasta_path
+        )
+        print("CD-HIT completed for combined dataset")
 
 
     with open(output_fasta_path, "r") as f:
